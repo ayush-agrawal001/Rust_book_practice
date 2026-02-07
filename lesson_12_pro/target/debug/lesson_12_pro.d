@@ -1,1 +1,0 @@
-/home/bunnytherobo001/rust/rust_book/lesson_12_pro/target/debug/lesson_12_pro: /home/bunnytherobo001/rust/rust_book/lesson_12_pro/src/lib.rs /home/bunnytherobo001/rust/rust_book/lesson_12_pro/src/main.rs
