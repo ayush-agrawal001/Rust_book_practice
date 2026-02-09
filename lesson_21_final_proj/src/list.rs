@@ -3,7 +3,7 @@ use std::{sync::{Arc, Mutex, mpsc}, thread::{JoinHandle, spawn}};
 
 pub struct ThreadPool{ 
     workers : Vec<Worker>,
-    sender : mpsc::Sender<Job> 
+    sender : Option<mpsc::Sender<Job>>
 }
 
 type Job = Box<dyn FnOnce() + Send + 'static>; // Dynamic state 
@@ -17,16 +17,21 @@ impl Worker  {
     fn new(id : usize, receiver : Arc<Mutex<mpsc::Receiver<Job>>>) -> Worker {
         let thread = spawn(move || {
             loop {
-                let job = receiver.lock().unwrap().recv().unwrap();
+                let job = receiver.lock().unwrap().recv();
 
-                println!("Worker {id} job is done");
-
-                job();
+                match job {
+                    Ok(job) => {
+                        println!("Worker {id} job is done");
+        
+                        job();
+                    },
+                    Err(_) => {
+                        println!("No connection from the worker, Shutting down");
+                        break;
+                    }
+                }
             }
         } );
-
-
-
         Worker { id, thread }
     }
 }
@@ -46,7 +51,7 @@ impl ThreadPool {
             workers.push(Worker::new(id, Arc::clone(&receiver)));
         }
 
-        ThreadPool { workers, sender }
+        ThreadPool { workers, sender : Some(sender) }
     }
 
     pub fn execute<F>( &self, f : F )
@@ -54,7 +59,21 @@ impl ThreadPool {
     // The above trait bound is refered from the spawn fn impl in thread.
      {
       let job = Box::new(f);
-      self.sender.send(job).unwrap()  
+      self.sender.as_ref().unwrap().send(job).unwrap()  
     }
 
+}
+
+// To gracefully shutdown the system
+
+impl Drop for ThreadPool {
+    fn drop(&mut self) {
+        
+        drop(self.sender.take());
+        for worker in self.workers.drain(..)  { // Drain creates all vec element, to .next()
+            println!("Shutting down worker {}", worker.id);
+
+            worker.thread.join().unwrap();
+        }
+    }
 }

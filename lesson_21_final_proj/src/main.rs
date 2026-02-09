@@ -10,7 +10,8 @@ fn main() {
 
     let pool = ThreadPool::new(4);
 
-    for stream in listner.incoming() {
+    for stream in listner.incoming().take(2) { 
+        // Take is from the vec, we use it here to test gracefull shutdown;
 
         let stream = stream.unwrap();
 
